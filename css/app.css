@@ -259,8 +259,11 @@ h1 { font: 650 clamp(24px, 4cqw, 34px)/1.15 var(--serif); letter-spacing: -.015e
 .board {
   container-type: inline-size;
   display: grid;
-  grid-template-columns: repeat(var(--cols), 1fr);
+  /* minmax(0, 1fr) + min-height 0: rows stay square however big the letters are */
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
   aspect-ratio: var(--cols) / var(--rows);
+  min-height: 0;
   gap: 1px; padding: 1px;
   background: var(--block);
   border-radius: 4px;
@@ -270,12 +273,14 @@ h1 { font: 650 clamp(24px, 4cqw, 34px)/1.15 var(--serif); letter-spacing: -.015e
 .cell {
   position: relative; background: var(--cell); cursor: pointer;
   display: grid; place-items: center;
+  min-width: 0; min-height: 0; overflow: visible;
 }
 .cell .num {
   position: absolute; left: 6%; top: 2%;
   font-size: calc(100cqw / var(--cols) * .27); line-height: 1; font-weight: 550; color: var(--ink-2);
 }
 .cell .ch {
+  position: absolute; inset: 0; display: grid; place-items: center;
   font: 600 calc(100cqw / var(--cols) * .58)/1 var(--sans);
   padding-top: 8%; text-transform: uppercase;
 }
