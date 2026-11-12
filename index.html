@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Hawkword</title>
+  <meta name="description" content="Daily crosswords with Hawktionary beside them.">
+  <meta name="theme-color" content="#F7F4EE" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#18171A" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,650&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <a class="brand" href="#/"><span class="brand-mark" aria-hidden="true">H</span><span>Hawkword</span></a>
+      <nav class="topnav">
+        <button class="btn ghost" id="dictToggle" type="button" aria-pressed="false" title="Show or hide Hawktionary">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3.5h8.5A3.5 3.5 0 0 1 16 7v9.5H7.5A3.5 3.5 0 0 1 4 13z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 7h6M7 10h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Hawktionary</span>
+        </button>
+      </nav>
+    </header>
+
+    <div class="layout" id="layout">
+      <main class="main" id="main" tabindex="-1"></main>
+
+      <aside class="dict" id="dict" aria-label="Hawktionary" hidden>
+        <div class="dict-bar">
+          <span class="dict-title">Hawktionary</span>
+          <span class="dict-spacer"></span>
+          <a class="icon-btn" id="dictPop" target="_blank" rel="noopener" title="Open in a new tab" aria-label="Open Hawktionary in a new tab">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 4h5v5M16 4l-7 7M14 12v4H4V6h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <button class="icon-btn" id="dictClose" type="button" title="Close" aria-label="Close Hawktionary">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <iframe id="dictFrame" title="Hawktionary" allow="clipboard-write"></iframe>
+      </aside>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
