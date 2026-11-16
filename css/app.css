@@ -100,7 +100,7 @@ svg { width: 18px; height: 18px; flex: none; }
 
 /* ---------- layout with Hawktionary ---------- */
 .layout { min-height: calc(100dvh - var(--top)); }
-.main { container-type: inline-size; min-width: 0; padding: 20px 16px 48px; outline: none; }
+.main { container: main / inline-size; min-width: 0; padding: 20px 16px 48px; outline: none; }
 
 .dict { background: var(--page); display: flex; flex-direction: column; }
 .dict-bar {
@@ -234,18 +234,31 @@ h1 { font: 650 clamp(24px, 4cqw, 34px)/1.15 var(--serif); letter-spacing: -.015e
 }
 .menu-list button:hover { background: var(--rule-soft); }
 
-.puz-body { display: grid; gap: 20px; }
-.board-col { min-width: 0; }
+/* ---------- fixed solving layout ----------
+   The page itself never scrolls while solving: the grid sits in a fixed panel and
+   only the clue list scrolls. The clue bar has a fixed height so a long clue can't
+   push the grid down. */
+body[data-view="solve"] { overflow: hidden; }
+body[data-view="solve"] .main { height: calc(100dvh - var(--top)); overflow: hidden; padding-bottom: 16px; }
+.solver {
+  --cb-h: 104px;
+  --board-max: max(200px, calc(100dvh - var(--top) - 430px));
+  height: 100%; display: flex; flex-direction: column;
+}
+.solver > .puz-head, .solver > .note { flex: none; }
+.solver > .note { margin: 0 0 10px; }
+.puz-body { flex: 1; min-height: 0; display: grid; gap: 14px 24px; grid-template-rows: auto minmax(0, 1fr); }
+.board-col { min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; }
 
 /* current clue */
 .cluebar {
-  position: sticky; top: var(--top); z-index: 10;
+  flex: none; height: var(--cb-h); width: min(100%, var(--board-max) + 120px);
   display: flex; align-items: center; gap: 6px;
   margin: 0 0 12px; padding: 8px 6px 8px 8px;
   background: var(--page); border: 1px solid var(--rule); border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
-.cb-main { flex: 1; min-width: 0; padding: 2px 4px; }
+.cb-main { flex: 1; min-width: 0; max-height: 100%; overflow-y: auto; scrollbar-width: thin; padding: 2px 4px; }
 .cb-label { display: block; color: var(--accent); font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
 .cb-text { margin: 1px 0 0; font: 500 17px/1.4 var(--serif); }
 .cb-text .w { cursor: pointer; border-radius: 3px; text-decoration: underline dotted color-mix(in srgb, var(--muted) 55%, transparent); text-underline-offset: 4px; transition: background .12s; }
@@ -255,7 +268,7 @@ h1 { font: 650 clamp(24px, 4cqw, 34px)/1.15 var(--serif); letter-spacing: -.015e
 .cb-nav { color: var(--ink-2); }
 
 /* grid */
-.board-wrap { position: relative; width: 100%; max-width: min(620px, calc(100dvh - var(--top) - 150px)); min-width: min(100%, 280px); }
+.board-wrap { position: relative; flex: none; width: min(100%, var(--board-max)); }
 .board {
   container-type: inline-size;
   display: grid;
@@ -289,6 +302,11 @@ h1 { font: 650 clamp(24px, 4cqw, 34px)/1.15 var(--serif); letter-spacing: -.015e
 .cell.wrong .ch { color: var(--wrong); }
 .cell.wrong::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top right, transparent calc(50% - .75px), var(--wrong) 50%, transparent calc(50% + .75px)); opacity: .55; }
 .cell.revealed .ch { color: var(--revealed); }
+/* pencil: lighter, slanted provisional letters */
+.cell.pencil .ch { color: var(--muted); font-weight: 400; font-style: italic; }
+.board.pencil-mode .cell.active { background: repeating-linear-gradient(135deg, var(--active) 0 5px, color-mix(in srgb, var(--active) 70%, var(--cell)) 5px 10px); }
+.tool-toggle[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.timer.solved { color: var(--ok); font-weight: 650; }
 /* word breaks: bar after the letter; hyphen as a short dash */
 .cell.sep-r { box-shadow: inset -3px 0 0 var(--block); }
 .cell.sep-b { box-shadow: inset 0 -3px 0 var(--block); }
@@ -303,7 +321,7 @@ h1 { font: 650 clamp(24px, 4cqw, 34px)/1.15 var(--serif); letter-spacing: -.015e
 }
 
 /* clue lists */
-.clues { display: grid; gap: 20px; align-content: start; }
+.clues { min-height: 0; overflow: auto; overscroll-behavior: contain; display: grid; gap: 20px; align-content: start; padding-right: 4px; }
 .clue-col h2 { margin: 0 0 6px; font: 650 13px/1 var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .clue-col ol { list-style: none; margin: 0; padding: 0; }
 .clue-col li {
@@ -315,22 +333,90 @@ h1 { font: 650 clamp(24px, 4cqw, 34px)/1.15 var(--serif); letter-spacing: -.015e
 .clue-col li.filled { color: var(--muted); }
 .cl-num { flex: none; min-width: 2.2em; font: 650 13px/1.65 var(--sans); }
 
-@container (min-width: 760px) {
-  .puz-body { grid-template-columns: minmax(320px, 1.25fr) minmax(260px, 1fr); align-items: start; }
-  .clues {
-    position: sticky; top: calc(var(--top) + 16px);
-    max-height: calc(100dvh - var(--top) - 32px); overflow: auto; padding-right: 4px;
-  }
+@container main (min-width: 760px) {
+  .puz-body { grid-template-columns: minmax(0, 1.25fr) minmax(260px, 1fr); grid-template-rows: minmax(0, 1fr); }
+  /* the board column measures its own box, and the grid is the biggest square that fits */
+  .board-col { container-type: size; align-items: flex-start; }
+  .board-wrap, .cluebar { width: min(100cqw, calc(100cqh - var(--cb-h) - 12px)); }
+  .cluebar { min-width: min(100cqw, 340px); }
 }
-@container (min-width: 1080px) {
-  .puz-body { grid-template-columns: minmax(420px, 1.3fr) minmax(0, 1.4fr); }
+@container main (min-width: 1080px) {
+  .puz-body { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.4fr); }
   .clues { grid-template-columns: 1fr 1fr; }
+}
+@container main (max-width: 600px) {
+  .puz-title h1 { font-size: 20px; }
+  .puz-title .crumb { margin-bottom: 2px; }
+  .tools .btn > svg + span { display: none; }   /* icons only for Pencil / Anagram */
+  .tools { gap: 0; flex-wrap: nowrap; }
+  .tools .btn { padding: 0 8px; min-height: 34px; }
+  .tools .timer { min-width: 0; padding-left: 0; }
+  .cb-text { line-height: 1.3; }
 }
 @media (max-width: 899.98px) {
   .main { padding-top: 14px; }
-  .puz-head { margin-bottom: 12px; }
-  .board-wrap { max-width: none; margin: 0 auto; }
+  .puz-head { margin-bottom: 10px; }
   .cb-text { font-size: 16px; }
+  /* dictionary sheet open: keep just the clue bar and grid above it */
+  body[data-view="solve"] .layout.with-dict .main { height: calc(100dvh - var(--top) - min(50dvh, 520px)); padding-bottom: 8px; }
+  .layout.with-dict .solver > .puz-head, .layout.with-dict .solver > .note, .layout.with-dict .clues { display: none; }
+  .layout.with-dict .solver { --board-max: max(140px, calc(100dvh - var(--top) - min(50dvh, 520px) - var(--cb-h) - 40px)); }
+}
+
+/* ---------- anagram helper ---------- */
+.anagram {
+  width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+  padding: 18px 18px 16px; border: 1px solid var(--rule); border-radius: 16px;
+  background: var(--page); color: var(--ink); box-shadow: var(--shadow-lift);
+}
+.anagram::backdrop { background: rgba(25, 23, 25, .38); }
+.ag-head { display: flex; align-items: flex-start; gap: 8px; }
+.ag-head > div { flex: 1; min-width: 0; }
+.ag-label { margin: 0; color: var(--accent); font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
+.ag-clue { margin: 2px 0 0; font: 500 17px/1.4 var(--serif); }
+.ag-ring {
+  position: relative; width: min(240px, 62vw); aspect-ratio: 1; margin: 10px auto 6px;
+  border-radius: 50%; background: radial-gradient(circle, var(--paper) 0 58%, transparent 59%), var(--rule-soft);
+  cursor: pointer;
+}
+.ag-count { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font: 600 15px/1 var(--sans); }
+.ag-tile {
+  position: absolute; width: 38px; height: 38px; margin: -19px 0 0 -19px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--ink); color: var(--paper); font: 650 18px/1 var(--sans);
+  transition: left .45s cubic-bezier(.3, 1.3, .5, 1), top .45s cubic-bezier(.3, 1.3, .5, 1), opacity .2s, background .2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+}
+.ag-tile.used { background: var(--rule); color: var(--muted); box-shadow: none; }
+.ag-pattern { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin: 8px 0 4px; }
+.ag-box {
+  width: 30px; height: 34px; display: grid; place-items: center;
+  border: 1.5px solid var(--ink-2); border-radius: 5px; background: var(--cell);
+  font: 650 18px/1 var(--sans);
+}
+.ag-box.fixed { background: var(--word); }
+.ag-box.ghost { color: var(--muted); font-weight: 450; border-style: dashed; }
+.ag-box.typed { color: var(--revealed); }
+.ag-box.clash { color: var(--wrong); border-color: var(--wrong); background: color-mix(in srgb, var(--wrong) 10%, var(--cell)); }
+.ag-gap { width: 12px; }
+.ag-hyphen { align-self: center; font-weight: 700; color: var(--ink-2); }
+.ag-status { margin: 6px 0 12px; text-align: center; color: var(--muted); font-size: 13px; min-height: 1.5em; }
+.ag-form { display: grid; gap: 12px; }
+.ag-field { display: grid; gap: 4px; }
+.ag-field label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.ag-row { display: flex; gap: 8px; }
+.ag-input {
+  flex: 1; min-width: 0; min-height: 40px; padding: 0 12px;
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink);
+  font: 600 16px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase;
+}
+.ag-input::placeholder { letter-spacing: .02em; text-transform: none; font-weight: 400; color: var(--muted); }
+.ag-row .btn { min-height: 40px; }
+.ag-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ag-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+@media (max-width: 520px) {
+  .anagram { margin: auto auto 0; width: 100vw; max-width: 100vw; border-radius: 16px 16px 0 0; }
+  .ag-box { width: 24px; height: 30px; font-size: 16px; }
 }
 
 /* toast */

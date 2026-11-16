@@ -1,6 +1,7 @@
 // The solving screen: grid, current clue bar, clue lists, check / reveal, timer, autosave.
 
-import { buildPuzzle, parentOf, answerCells, answerPattern, clueFragment, lookupForm, htmlToText } from './puzzle.js';
+import { buildPuzzle, parentOf, answerCells, answerPattern, answerBreaks, clueFragment, lookupForm, htmlToText } from './puzzle.js';
+import { openAnagram } from './anagram.js';
 import { load, save, progressKey } from './store.js';
 import { SERIES } from './config.js';
 import * as dict from './dictionary.js';
@@ -18,7 +19,9 @@ export function renderSolver(main, data, series, id) {
     return ch && ch !== '.' ? ch : '';
   });
   const revealed = new Set(saved.r || []);
+  const pencil = new Set(saved.p || []);   // letters typed in pencil mode
   const wrong = new Set();
+  let pencilMode = !!load('pencilMode', false);
   let secs = saved.t || 0;
   let done = !!saved.done;
   let paused = false;
@@ -78,14 +81,23 @@ export function renderSolver(main, data, series, id) {
       h('div', { class: 'menu-list' }, items.map(([text, fn]) => h('button', { type: 'button', onclick: () => { d.open = false; fn(); focusGrid(); } }, text))));
     return d;
   };
+  const pencilBtn = h('button', { class: 'btn ghost tool-toggle', type: 'button', 'aria-pressed': String(pencilMode), title: 'Pencil mode: grey, provisional letters (press .)' },
+    icon('<path d="M13.5 3.5l3 3L7 16H4v-3z M11.5 5.5l3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'),
+    h('span', {}, 'Pencil'));
+  pencilBtn.addEventListener('click', () => { setPencil(!pencilMode); focusGrid(); });
+  const anagramBtn = h('button', { class: 'btn ghost', type: 'button', title: 'Anagram helper for this clue (press #)' },
+    icon('<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2.2"/><path d="M8 8.5l2-2 2 2M12 11.5l-2 2-2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'),
+    h('span', {}, 'Anagram'));
+  anagramBtn.addEventListener('click', () => openAnagramFor());
   const tools = h('div', { class: 'tools' },
     timerBtn,
+    pencilBtn,
+    anagramBtn,
     pz.hasSolution ? menu('Check', [['Letter', () => check([cur])], ['Word', () => check(wordCells())], ['Grid', () => check(allCells())]]) : null,
     pz.hasSolution ? menu('Reveal', [['Letter', () => reveal([cur])], ['Word', () => reveal(wordCells())], ['Grid', () => confirm('Reveal the whole grid?') && reveal(allCells())]]) : null,
     menu('Clear', [['Word', () => clear(wordCells())], ['Wrong letters', () => clearWrong()], ['Grid', () => confirm('Clear every letter?') && clear(allCells())]]));
 
   const seriesName = SERIES[series]?.name || series;
-  const banner = h('div', { class: 'banner', hidden: true });
   const head = h('div', { class: 'puz-head' },
     h('div', { class: 'puz-title' },
       h('a', { class: 'crumb', href: `#/series/${series}` }, `${seriesName} archive`),
@@ -100,7 +112,7 @@ export function renderSolver(main, data, series, id) {
   if (pz.instructions) notes.push(h('p', { class: 'note' }, htmlToText(pz.instructions)));
 
   const root = h('section', { class: 'solver' },
-    head, banner, ...notes,
+    head, ...notes,
     h('div', { class: 'puz-body' },
       h('div', { class: 'board-col' }, clueBar, h('div', { class: 'board-wrap' }, board, kbd)),
       clues));
@@ -137,7 +149,9 @@ export function renderSolver(main, data, series, id) {
       el.classList.toggle('inword', word.has(i));
       el.classList.toggle('wrong', wrong.has(i));
       el.classList.toggle('revealed', revealed.has(i));
+      el.classList.toggle('pencil', pencil.has(i) && !!letters[i]);
     }
+    board.classList.toggle('pencil-mode', pencilMode);
     // position the hidden input over the active cell so the phone keyboard doesn't jump the page
     const a = cellEls[cur];
     kbd.style.left = `${a.offsetLeft}px`;
@@ -153,17 +167,31 @@ export function renderSolver(main, data, series, id) {
       for (const li of listEls.values()) li.classList.remove('current');
       for (const gid of parent.group) listEls.get(gid)?.classList.add('current');
       const li = listEls.get(parent.id);
-      if (li && matchMedia('(min-width: 900px)').matches) li.scrollIntoView({ block: 'nearest' });
+      if (li) scrollListTo(li);
     }
     for (const e of pz.clueOrder) {
       const filled = answerCells(pz, e.id).every((i) => letters[i]);
       for (const gid of e.group) listEls.get(gid)?.classList.toggle('filled', filled);
     }
     timerBtn.textContent = done ? `✓ ${formatTime(secs)}` : paused ? `Paused ${formatTime(secs)}` : formatTime(secs);
-    banner.hidden = !done;
-    if (done) {
-      banner.textContent = `Solved in ${formatTime(secs)}${revealed.size ? ` · ${revealed.size} letter${revealed.size === 1 ? '' : 's'} revealed` : ''}`;
-    }
+    timerBtn.classList.toggle('solved', done);
+    if (done) timerBtn.title = `Solved in ${formatTime(secs)}${revealed.size ? ` · ${revealed.size} letter${revealed.size === 1 ? '' : 's'} revealed` : ''}`;
+  }
+
+  // Scroll only the clue list (never the page), so the grid can't move.
+  function scrollListTo(li) {
+    const box = clues;
+    if (box.scrollHeight <= box.clientHeight) return;
+    const top = li.offsetTop - box.offsetTop;
+    if (top < box.scrollTop + 8) box.scrollTop = top - 8;
+    else if (top + li.offsetHeight > box.scrollTop + box.clientHeight - 8) box.scrollTop = top + li.offsetHeight - box.clientHeight + 8;
+  }
+
+  function setPencil(on) {
+    pencilMode = on;
+    pencilBtn.setAttribute('aria-pressed', String(on));
+    save('pencilMode', on);
+    paint();
   }
 
   // ---------- persistence ----------
@@ -173,6 +201,7 @@ export function renderSolver(main, data, series, id) {
     const write = () => save(key, {
       l: letters.map((c) => c || '.').join(''),
       r: [...revealed],
+      p: [...pencil].filter((i) => letters[i]),
       t: secs,
       done,
       f: letters.filter(Boolean).length,
@@ -248,8 +277,41 @@ export function renderSolver(main, data, series, id) {
     letters[cur] = ch;
     wrong.delete(cur);
     revealed.delete(cur);
+    if (pencilMode) pencil.add(cur); else pencil.delete(cur);
     stepWithinWord(1);
     afterChange();
+  }
+
+  // ---------- anagram helper ----------
+  function openAnagramFor() {
+    const id = currentEntry();
+    const parent = parentOf(pz, id);
+    const cells = answerCells(pz, id);
+    openAnagram({
+      label: `${parent.label} ${parent.direction}`,
+      clueHtml: parent.clueHtml,
+      clueText: parent.clueText,
+      slots: cells.map((i) => letters[i]),
+      breaks: answerBreaks(pz, id),
+      pencilMode,
+      onPlace(answer, asPencil) {
+        if (done) return;
+        cells.forEach((ci, k) => {
+          const ch = answer[k];
+          if (!ch) return;
+          letters[ci] = ch;
+          wrong.delete(ci);
+          revealed.delete(ci);
+          if (asPencil) pencil.add(ci); else pencil.delete(ci);
+        });
+        afterChange();
+        focusGrid();
+      },
+      onSolve(fodder) {
+        dict.solve(parent.clueText, answerPattern(pz, id, letters), fodder.toLowerCase());
+      },
+      onClose: focusGrid,
+    });
   }
 
   function backspace() {
@@ -278,6 +340,7 @@ export function renderSolver(main, data, series, id) {
 
   function onKey(e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (document.querySelector('dialog[open]')) return;
     const t = e.target;
     if (t !== kbd && t.closest?.('input, textarea, select, [contenteditable]')) return;
     if (t !== kbd && t.closest?.('a, button, summary')) {
@@ -286,14 +349,16 @@ export function renderSolver(main, data, series, id) {
     const k = e.key;
     if (/^[a-z]$/i.test(k)) { type(k.toUpperCase()); }
     else if (k === 'Backspace') { backspace(); }
-    else if (k === 'Delete') { if (!done) { letters[cur] = ''; wrong.delete(cur); afterChange(); } }
+    else if (k === 'Delete') { if (!done) { letters[cur] = ''; wrong.delete(cur); pencil.delete(cur); afterChange(); } }
     else if (k === 'ArrowLeft') move(-1, 0);
     else if (k === 'ArrowRight') move(1, 0);
     else if (k === 'ArrowUp') move(0, -1);
     else if (k === 'ArrowDown') move(0, 1);
     else if (k === 'Tab') stepClue(e.shiftKey ? -1 : 1);
     else if (k === 'Enter' || k === ' ') { const o = dir === 'across' ? 'down' : 'across'; if (entryAt(cur, o)) { dir = o; paint(); } }
-    else if (k === '?' ) { sendToSolve(); }
+    else if (k === '?') { sendToSolve(); }
+    else if (k === '.') { setPencil(!pencilMode); }
+    else if (k === '#') { openAnagramFor(); }
     else return;
     e.preventDefault();
   }
@@ -367,12 +432,13 @@ export function renderSolver(main, data, series, id) {
         revealed.add(i);
       }
       wrong.delete(i);
+      pencil.delete(i);
     }
     afterChange();
   }
 
   function clear(cells) {
-    for (const i of cells) { letters[i] = ''; wrong.delete(i); revealed.delete(i); }
+    for (const i of cells) { letters[i] = ''; wrong.delete(i); revealed.delete(i); pencil.delete(i); }
     if (done) done = false;
     afterChange();
   }
@@ -407,6 +473,14 @@ export function renderSolver(main, data, series, id) {
     document.removeEventListener('visibilitychange', onHide);
     removeEventListener('resize', onResize);
   };
+}
+
+function icon(paths) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = paths;
+  return svg;
 }
 
 function chevron(side) {

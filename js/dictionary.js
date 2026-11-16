@@ -52,9 +52,9 @@ export function lookup(word) {
   if (!open) setOpen(true);
 }
 
-/** Send a clue (and the grid pattern so far) to the Solve tab. */
-export function solve(clue, pattern) {
-  const hash = hashFor('solve', { c: clue, p: pattern });
+/** Send a clue (and the grid pattern so far, and any anagram letters) to the Solve tab. */
+export function solve(clue, pattern, anagram = '') {
+  const hash = hashFor('solve', { c: clue, p: pattern, a: anagram });
   navigate(hash);
   if (!open) setOpen(true);
 }
